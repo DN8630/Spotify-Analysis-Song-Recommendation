@@ -1,0 +1,743 @@
+---
+title: "Spotify Data Analysis"
+output: html_document
+
+---
+
+<style>
+  body { background-color: HoneyDew; }
+pre, pre:not([class]) { background-color: White; }
+</style>
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+<div>
+<p style="font-family: times, serif; font-size:11pt; font-style:italic"><b>Presented by - <b>Daya Nayak, Shubham Jha, Maulik Patel</b></p>
+## Analysis of Songs on Spotify {.tabset}
+
+
+### Introduction {.tabset}
+
+#### Background
+[Spotify](https://www.spotify.com/us/) is a Swedish-based audio streaming and media services provider, which launched in October 2008. It is now one of the biggest digital music, podcast, and streaming service in the world that gives access to millions of songs from artists all over the world. It has also started producing music albums and events across the world.
+
+
+
+```{r pressure, echo=FALSE , out.width= '100%' , out.height= '100%' , out.extra='style="float:center;border:0 ;padding: -300px "',  warning=FALSE, message=FALSE}
+  
+#Installing Imager Library
+library(imager)
+par(mar = c(0,0,0,0))
+
+im <- load.image("https://storage.googleapis.com/hrblog-spotify-com.appspot.com/1/2018/02/inclusion-image.jpg")
+
+plot(im,axes = FALSE, frame=FALSE)
+
+```
+
+
+Spotify offers over 70 million tracks, and 2 million podcasts to more than 300 million monthly users. As a freemium service, basic features are free with advertisements and limited control, while additional features, such as offline listening and commercial-free listening, are offered via paid subscriptions. Users can search for music based on track, artist, album, or genre, and can create, edit & share playlists.
+
+#### Objective & Proposed Analytical Methodology
+
+The scope of the project is to determine whether the popularity of a song is based on genre/sub-genre and audio features like loudness, speechiness, danceability etc. This analysis can provide insights on what features make a song popular and can also help in music recommendation to the users. We would also like to try finding groups among the songs, based on it's features. This would in-turn help the user in creating the playlist, by suggesting him/her the songs, based on the selected song.
+
+**We plan to explore following aspects for the data analysis:**
+
+* Identify relationship between music features (both categorical and numerical).
+* Identifying each genre’s features and how Spotify classifies genres.
+* Do certain factors make a song more or less popular?.
+* Also try to see a trend analysis of all the features throughout the years.
+* Find any correlation of the features amongst each other.
+* Look how different features impact the song's popularity.
+
+**What we hope to Achieve with the analyses?**
+
+These insights will help us in coming up with a model to predict popularity score of the song given its features. Helpful when composing music to see what factors play heavily into popularity. This could help Artists on what factors to focus on for maximising chance at Popularity.
+
+Build a simple recommender-system that suggests similar songs based on the user's preferences and listening habits. Helpful in discovering new songs and playlist creation.
+
+### Packages Used {.tabset}
+
+The following packages are used in the analysis:
+
+* **Tidyverse** - Collection of R packages for data manipulation, exploration and visualization.
+
+* **ggplot2** - Used for plotting charts.
+
+* **plotly** - For web-based graphs via the open source JavaScript graphing library plotly.js for interactive charts
+
+* **factoextra** - To visualize the output of multivariate data analysis
+
+* **funModeling** - Exploratory Data Analysis and Data Preparation Tool-Box
+
+* **RColorBrewer** - To help you choose sensible colour schemes for figures in R
+
+* **ggplot2** - ggplot2 is a system for declaratively creating graphics, based on The Grammar of Graphics.
+
+* **Lubridate** - It is a package that eases working with Date and Time datatypes
+
+* **Knitr** - it is a package in the statistical programming language R that enables integration of R code into LaTeX, LyX, HTML, Markdown, AsciiDoc, and reStructuredText documents
+
+* **DT** - Data objects in R can be rendered as HTML by importing this package.
+
+* **cowplot** - For providing addition functionalities to ggplot.
+
+* **wordcloud** - Creates wordclouds
+
+* **corrplot** - It is used for creating correlation matrix, to find colinearity between different features
+
+* **kableExtra** - allows users to construct complex tables and customize styles using a readable syntax.
+
+* **imager** - allows to load images from a publically available URL.
+
+
+```{r load-packages, results = FALSE, message=FALSE, warning=FALSE,echo=FALSE}
+library(tidyverse)
+library(ggplot2)
+library(dplyr)
+library(highcharter)
+library(knitr)
+library(kableExtra)
+library(DT)
+library(tm)
+library(corrplot)
+library(readr)
+library(tidyr)
+library(plotly)
+library(data.table)
+library(DT)
+library(kableExtra)
+library(knitr)
+library(stringr)
+library(formattable)
+library(plotly)
+library(wordcloud)
+library(RColorBrewer)
+library(tidyverse)
+library(tidyselect)
+library(tm)
+library(ggplot2)
+library(gridExtra)
+library(funModeling)
+library(ggpubr)
+library(cowplot)
+```
+
+
+### Data Preparation {.tabset}
+
+
+#### Data Source
+
+The data comes from Spotify via the [**spotifyr**]((https://www.rcharlie.com/spotifyr/)) package. Charlie Thompson, Josiah Parry, Donal Phipps, and Tom Wolff authored this package to make it easier to get either your own data or general metadata around songs from Spotify’s API.
+
+A subset of the data had already been extracted and is available for access on [**Github**](https://github.com/rfordatascience/tidytuesday/tree/master/data/2020/2020-01-21) on which the analysis has been done. The song database consists of songs, its popularity, artists, the album to which the song belongs to from 6 main genres (*EDM, Latin, Pop, R&B, Rap, and Rock*) from Jan 1957 to Jan 2020. 
+
+__*Reading the Data from the source file*__
+
+```{r, results = FALSE, message=FALSE, warning=FALSE}
+spotify_songs <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-01-21/spotify_songs.csv')
+```
+
+#### Data Dictionary 
+
+The dataset used comprises of around 32,833 songs (with 23 features) on Spotify from 1957-2020 and was updated on 1/21/2020. This [medium article](https://towardsdatascience.com/what-makes-a-song-likeable-dbfdb7abe404) does a great job of explaining the various “audio features” that Spotify links to a song. 
+
+*Here is the data dictionary as a reference:*
+
+```{r, echo=FALSE, warning=FALSE}
+data_dict <- read.csv("https://raw.githubusercontent.com/maupatel/DataWrangling/main/spotify_data_dict.csv") # show_col_types = FALSE)
+
+datatable(data_dict, filter = 'top', options = list(pageLength = 25))
+```
+
+#### Preliminary Data Cleaning and Summary {.tabset}
+
+##### 1) **Analysing the original data-set**
+
+
+
+```{r}
+### Checking dimension of Data
+dim(spotify_songs)
+
+### Checking structure of Data
+str(spotify_songs)
+
+### summarising the Data set and features
+summary(spotify_songs)
+
+
+### checking for NULLs or missing values 
+colSums(is.na(spotify_songs))
+```
+
+
+##### 2) **Cleaning the Data Set**
+
+
+**Null values:**
+*As we can see that the track_name,track_album_name and track_artist variables contain 5 missing values. Out of 32833 rows, we can remove 5 rows without any significant impact on our data.*
+
+
+**Duplicate Data:**
+*We observed that some of the songs have been repeated more than once in this dataset. Out of 32,833 songs, only 28,352 songs are unique. __They have the same ‘track_id’ but have a different ‘playlist_id’.__ So we need to remove those duplicated songs in the dataset. Since the song’s ‘track_id’ is the unique identifier for a song and the other numeric and categorical features of that song remains the same, we will delete those duplicated songs based on the ‘track_id’.*
+
+
+```{r}
+#### Removing NULL values from the data 
+spotify_songs <- na.omit(spotify_songs)
+
+#### Changing datatype of some categorical columns from string to factor. 
+#### This is done as factors are less in number compared to regular string (e.g. song name) 
+#### and factors are used for categorical data analysis
+spotify_songs <-spotify_songs %>%
+  mutate(playlist_genre=as.factor(spotify_songs$playlist_genre),
+         playlist_subgenre=as.factor(spotify_songs$playlist_subgenre),
+         mode=as.factor(mode),
+         key=as.factor(key))
+
+#### removing duplicated data 
+spotify_songs <- spotify_songs[!duplicated(spotify_songs$track_id),]
+dim(spotify_songs)
+
+### summarising the Data set and features
+summary(spotify_songs)
+
+```
+
+
+**Redundant Columns : **
+Now since we don't have duplicate records, and we would like to analyze which features influence the ‘track_popularity’, we can drop the following columns which are not useful in our analyses:
+
+* track_id
+* track_album_id
+* track_album_name
+* playlist_id
+* playlist_name
+* playlist_subgenre
+
+```{r}
+#### Dropping Redundant Columns
+spotify_songs <- spotify_songs %>% select(-c(track_id, track_album_id,
+                                             track_album_name, 
+                                             playlist_id, playlist_name,
+                                             playlist_subgenre))
+
+```
+**Data Manipulation : **
+
+``` {r, message=FALSE, warning=FALSE}
+spotify_songs$track_album_release_date <- as.character(spotify_songs$track_album_release_date, "%m/%d/%Y")
+spotify_songs$year <- substr(spotify_songs$track_album_release_date,1,4)
+
+#### changing data type of year column
+spotify_songs$year <- as.numeric(spotify_songs$year)
+
+
+### Checking structure of Data
+str(spotify_songs)
+```
+
+##### 3) **Cleaned Data set**
+
+A preview of the clean data-set is given below:
+
+```{r}
+### displaying top 100 rows
+output_data <- head(spotify_songs, n = 100)
+datatable(output_data, filter = 'top', options = list(pageLength = 25))
+```
+
+
+### Exploratory Data Analysis {.tabset}
+
+#### 1) Summary by Genre:
+
+Let's see the distribution of songs across different genres. Which genre has the most number of songs in the dataset?
+```{r, message=FALSE, warning=FALSE}
+# songs per genre
+spotify_songs %>% group_by(Genre = playlist_genre) %>%
+  summarise(No_of_tracks = n()) %>% 
+  arrange(desc(No_of_tracks)) %>% knitr::kable()
+```
+**Rap is the genre in which most songs have been released, followed by Pop and then EDM.**
+
+##### Let's look at Artists with most track releases:
+```{r, message=FALSE, warning=FALSE}
+# artists with most releases
+highest_tracks <- spotify_songs %>% group_by(Artist = track_artist) %>%
+  summarise(No_of_tracks = n()) %>%
+  arrange(desc(No_of_tracks)) %>%
+  top_n(15, wt = No_of_tracks) %>% 
+  ggplot(aes(x = Artist, y = No_of_tracks)) +
+        geom_bar(stat = "identity") +
+        coord_flip() + labs(title = "Artists With The Most Track Releases", x = "Artist", y = "# of Tracks")
+
+ggplotly(highest_tracks)
+```
+
+Queen(Tracks = 130), Martin Garrix(Tracks = 87), Don Omar (Tracks = 84) are one of the Top Artists, with the Most Track Releases across the years. The Top 15 Artists are shown here.
+
+
+##### Most frequent track names:
+
+```{r, message=FALSE, warning=FALSE}
+#Create a vector containing only the text
+name <- spotify_songs$track_name 
+# Create a corpus  
+corpus_ <- Corpus(VectorSource(name))
+
+#clean text data - remove suffix and adjectives
+corpus_ <- corpus_ %>%
+        tm_map(removeNumbers) %>%
+        tm_map(removePunctuation) %>%
+        tm_map(stripWhitespace)
+corpus_ <- tm_map(corpus_, content_transformer(tolower))
+corpus_ <- tm_map(corpus_, removeWords, stopwords("english"))
+corpus_ <- tm_map(corpus_, removeWords,c("feat","edit","remix","remastered","remaster","radio","version","original","mix"))
+
+#create a document-term matrix
+
+dtm <- TermDocumentMatrix(corpus_) 
+dtm_matrix <- as.matrix(dtm) 
+words <- sort(rowSums(dtm_matrix),decreasing=TRUE) 
+df <- data.frame(word = names(words),freq=words)
+
+#generate the word cloud
+wordcloud(words = df$word, freq = df$freq,scale=c(8,0.25), min.freq = 1,
+          max.words=150, random.order=FALSE, rot.per=0.25, 
+          colors=brewer.pal(8, "Dark2"))
+```
+
+Love is the most frequently used word in the title of the song followed by don't and like.
+
+##### Distribution of song popularity across genres
+``` {r, message=FALSE, warning=FALSE}
+
+#popularity among genres
+popularity_vs_genre_plot<- ggplot(spotify_songs, aes(x = playlist_genre, y =
+                                                 track_popularity)) +
+        geom_boxplot() +
+        coord_flip() +
+        labs(title = "Popularity across genres", x = "Genres", y = "Popularity")
+
+ggplotly(popularity_vs_genre_plot)
+```
+
+Based on the Median values, it can be seen that the Pop is the most popular genre amongst the others. It is closely followed by latin and rap.
+
+##### Songs released over the years
+``` {r, message=FALSE, warning=FALSE}
+# grouping tracks by years
+
+tracks_year <- spotify_songs %>% 
+  select(year) %>%
+  filter(year<2020) %>%
+  group_by(year) %>%
+  summarise(count = n()) 
+
+#plot of tracks released across the years
+
+tracks_vs_year <- ggplot(tracks_year,aes(x = year, y = count,group = 1)) + 
+  geom_line() +
+  theme(legend.position = "none",axis.text.x = element_text(angle = 90, hjust = 1)) +
+  labs(title = "Release of songs across years", x = "Year", 
+       y = "No of songs released")
+
+ggplotly(tracks_vs_year)
+```
+
+We see that almost 75% of the songs were released in 21^st^ century. The adent of the internet and the audio streaming services may have caused this drastic increase in the production of songs in the 21^st^ Century.
+
+
+##### Popularity of genres over the decades
+Are the same genre of songs popular over the years or has the people's taste in music changed over the years?
+``` {r, message=FALSE, warning=FALSE}
+## Find popular genres over the decades
+spotify_1 <- spotify_songs %>%
+  select(track_popularity,year,playlist_genre) %>%
+  mutate(year = as.numeric(spotify_songs$year), decade = year - (year %% 10))
+
+spotify_2 <- spotify_1 %>%
+  filter(track_popularity > 50) %>%
+  group_by(decade, playlist_genre) %>%
+  summarise(count = n())
+
+decadewise_tracks_genre <- spotify_2 %>% 
+  group_by(decade) %>%
+  ggplot(aes(fill = playlist_genre, x = decade, y = count)) +
+  geom_bar(position= "stack", stat = "identity") +
+  labs(title = "Popular genre over the decades", x = "Decade", y = "Popularity of Genre")
+
+ggplotly(decadewise_tracks_genre)
+```
+Rock music was quite popular in earlier decades of 1960-70s where as pop songs are most popular during 2010.It shows a drastic change in people's choice of songs in later 2010 from 1960-70s.
+
+#### 2) Feature Analysis:
+
+##### Correlation between features (numeric) - *using Corrplot function*
+
+```{r, message=FALSE, warning=FALSE}
+##### Correlation plot for numeric columns
+corr_spotify  <- spotify_songs %>%
+select(track_popularity, danceability, energy, loudness, speechiness, 
+                   acousticness, instrumentalness, liveness, valence, tempo, duration_ms)
+
+corrplot(cor(corr_spotify),type="lower")
+```
+<br><br>
+We can observe from the correlation matrix that Loudness & Energy have a moderate-to-strong positive correlation. Similarly, Acousticness & Energy, and Acousticness & Loudness have a negative correlation. All other features seems statistically linearly independent.
+
+##### Correlation within genres
+How do the genres correlate with each other? We will calculate the median feature values of each genre and then compute correlation between them to find out.
+``` {r, message=FALSE, warning=FALSE}
+# average features by genre
+avg_feature_genre <- spotify_songs %>%
+  group_by(playlist_genre) %>%
+  summarise_if(is.numeric, median, na.rm = TRUE) %>%
+  ungroup() 
+
+avg_genre_cor <- avg_feature_genre %>%
+  select(track_popularity, danceability, energy, loudness, speechiness, 
+         acousticness, instrumentalness, liveness, valence, tempo, duration_ms) %>% 
+  scale() %>%
+  t() %>%
+  as.matrix() %>%
+  cor() 
+
+colnames(avg_genre_cor) <- avg_feature_genre$playlist_genre
+row.names(avg_genre_cor) <- avg_feature_genre$playlist_genre
+
+avg_genre_cor %>% corrplot::corrplot(method = 'color', 
+                                     order = 'hclust',
+                                     type = 'upper',
+                                     tl.col = 'black',
+                                     diag = FALSE,
+                                     addCoef.col = "grey40",
+                                     number.cex = 0.75,
+                                     col = colorRampPalette(colors = c(
+                                       'red', 
+                                       'white', 
+                                       'darkblue'))(200),
+                                     mar = c(2,2,2,2),
+                                     main = 'Correlation Between Median Genre
+                                     Feature Values',
+                                     family = 'Avenir')
+```
+
+We observe that EDM and Rock are negatively correlated with all other audio features except with each other. Latin and R&B are most similar to each other with correlation of 0.37, while EDM and R&B is the most different with a negative correlation of -0.69.
+
+##### Variation of popularity with song features
+
+```{r, message=FALSE, warning=FALSE}
+# measuring variation trend of popularity with song/track features
+
+song_features <- c('danceability', 'energy', 'loudness', 'speechiness', 
+                   'acousticness', 'instrumentalness', 'liveness', 'valence', 'tempo', 'duration_ms')
+
+popularity_features<- spotify_songs %>%
+  select(c('track_popularity', all_of(song_features))) %>%
+  group_by(track_popularity) %>%
+  summarise_if(is.numeric, mean) %>%
+  ungroup()
+plot_list = list()
+for (i in 1:length(song_features)) {
+  plot_list[[i]] = ggplot(popularity_features, aes_string(x = "track_popularity", 
+                                                 y = song_features[i])) + 
+    geom_point(shape = 20, color = 3) +
+    geom_smooth(method = lm,  linetype = "dashed", color = "blue", se = F) + 
+      xlab("Track Popularity")
+}
+suppressMessages(do.call(grid.arrange, 
+                         c(plot_list, list(top = "variation trend of popularity with Track features"))))
+
+
+```
+
+The danceability seems to be increasing with increasing popularity. Also the instrumentalness of the song is very low for the popular songs.  It can be also noticed that the popular songs are generally shorter in duration. 
+
+##### Are positive or cheerful songs more popular than negative or sad?
+``` {r, message=FALSE, warning=FALSE}
+#correlation between valence and song popularity
+trackpopularity_vs_valence <-  ggplot(spotify_songs, aes(valence, track_popularity)) + 
+  geom_jitter(color = "orange", alpha = 0.5) + theme_light()+
+  geom_smooth(color = 'black')
+
+trackpopularity_vs_valence
+```
+
+The song popularity remains almost same for high and low valence. This suggests that both happy or cheerful and sad or depressed songs are equally popular among the users.
+<br><br>
+
+Plotting The Average Energy Levels for Each Genre
+``` {r, message=FALSE, warning=FALSE}
+boxplot(energy~playlist_genre, data = spotify_songs,
+        main = "Energy Levels per Genre",
+        xlab = "Energy Level",
+        ylab = "Genre",
+        col = "Yellow",
+        border = "black",
+        horizontal = FALSE
+)
+```
+
+R&B genre songs generally have a very low energy as compared to any other genre. And Rock and EDM genres generally have the highest energy levels.
+
+``` {r, message=FALSE, warning=FALSE}
+boxplot(liveness~playlist_genre, data = spotify_songs,
+        main = "Liveness per Genre",
+        xlab = "Liveness",
+        ylab = "Genre",
+        col = "Green",
+        border = "black",
+        horizontal = TRUE
+)
+```
+
+``` {r, message=FALSE, warning=FALSE}
+boxplot(valence~playlist_genre, data = spotify_songs,
+        main = "Valence per Genre",
+        xlab = "Valence",
+        ylab = "Genre",
+        col = "Pink",
+        border = "black",
+        horizontal = TRUE
+)
+```
+
+
+
+Plotting Histograms of all the characteristics with the main song
+``` {r, message=FALSE, warning=FALSE}
+plot_num(spotify_songs[,])
+```
+
+Instrumentalness seems to be at the lowest level for a majority of the songs. Acousticness and speechiness is also skewed towards the lower levels.
+
+**Loudness & Acousticness vs Energy Scatter Plot**
+
+``` {r, message=FALSE, warning=FALSE}
+s1 <- spotify_songs %>% ggplot(aes(energy,loudness)) +
+  geom_point(color = 'green', alpha = 0.1, shape = 1) +
+  geom_smooth(color = 'black')
+
+s2 <- spotify_songs %>% ggplot(aes(energy,acousticness)) +
+  geom_point(color = 'red', alpha = 0.1, shape = 1) +
+  geom_smooth(color = 'black')
+
+s3 <- spotify_songs %>% ggplot(aes(energy,instrumentalness)) +
+  geom_point(color = 'blue', alpha = 0.1, shape = 1) +
+  geom_smooth(color = 'black')
+
+s4 <- spotify_songs %>% ggplot(aes(energy,liveness)) +
+  geom_point(color = 'yellow', alpha = 0.1, shape = 1) +
+  geom_smooth(color = 'black')
+
+#Plotting Variations of Loudness, Acousticness, Instrumentalness, and Liveness with Energy
+ggarrange(s1,s2,s3,s4)
+```
+
+While comparing the correlation of the other features with the energy feature, we can see that the acousticness is inversely proportional to energy. Loudness is also high for highly energetic songs.
+
+##### Year-Wise Feature Trends:
+
+``` {r, message=FALSE, warning=FALSE}
+trend_chart <- function(arg){
+trend_change <- spotify_songs %>% filter(year>2010) %>% group_by(year) %>% summarize_at(vars(all_of(arg)), funs(Average = mean)) 
+  
+  
+chart <- ggplot(data = trend_change, aes(x = year, y = Average)) +
+geom_line(color = "bLack", size = 1) +
+scale_x_continuous(breaks=seq(2011, 2020, 1)) + scale_y_continuous(name=paste("",arg,sep=""))  
+return(chart)
+}
+
+trend_chart_track_popularity<-trend_chart("track_popularity")
+trend_chart_danceability<-trend_chart("danceability")
+trend_chart_energy<-trend_chart("energy")
+trend_chart_loudness<-trend_chart("loudness")
+trend_chart_duration_ms<-trend_chart("duration_ms")
+trend_chart_speechiness<-trend_chart("speechiness")
+
+
+plot_grid(trend_chart_track_popularity, trend_chart_danceability, trend_chart_energy, trend_chart_loudness, trend_chart_duration_ms, trend_chart_speechiness,ncol = 2, label_size = 1)
+```
+
+A clearly observable trend can be seen in the duration, as in over the years the duration of songs has rapidly decreased. The danceability of the songs can be seen to be increasing  over the years.
+
+#### 3) Key Insights:
+
+##### OBSERVATIONS:
+
+- 'Love' is the most popular 'title' used in the songs, which is closely followed by "Don't" and "Like".
+
+- Popular songs are just 2.5 - 4 minutes long.
+
+- Over the years, the duration of the songs has also decreased drastically.
+
+- In 1960s and 1970s, the 'Rock' genre was more popular as compared to the other genres. But over the years, the 'Pop' genre has taken over the popularity.
+
+- Instrumentalness is lower than 0.1 in a majority of observations.
+
+- Valence, Energy and Danceability seem to be normally distributed.
+
+- Song's with higher speechiness are generally not popular.
+
+
+
+### Song Recommendation using Clustering
+
+```{r, message=FALSE, warning=FALSE}
+
+rm(dtm_matrix)
+
+
+spotify_reduced <- spotify_songs %>% select(-c(track_artist, track_name, track_album_release_date,
+playlist_genre, mode))
+spotify_reduced$key <- as.numeric(spotify_reduced$key)
+
+
+
+spotify_reduced <- as.data.frame(scale(spotify_reduced))
+
+
+
+```
+
+
+Taking 5670 as optimal value and creating cluster
+```{r, message=FALSE, warning=FALSE}
+
+clust <- kmeans(spotify_reduced, 5670)
+
+# final data -
+spotify_songs_final <- cbind(spotify_songs, cluster_num = clust$cluster)
+
+
+```
+
+
+**Checking goodness of fit for clusters**
+
+We know Total SSE = Within Cluster SSE + Between Clusters SSE. If maximum SSE is captured by between clusters, and within clusters SSE is minimized, our clustering is a good fit checking the $ of SSE captured by between Cluster SSE
+
+```{r, message=FALSE, warning=FALSE}
+
+print(paste0(round(clust$betweenss/clust$totss, 4)*100, "%"))
+
+
+```
+
+
+
+Filtering out the songs which couldnt be clustered or have less neighbors
+
+```{r, message=FALSE, warning=FALSE}
+
+t <- spotify_songs_final %>% group_by(cluster_num) %>% summarise(n = n())
+
+
+spotify_songs_final_songs <- spotify_songs_final %>% group_by(cluster_num) %>% filter(n()>3)
+
+
+
+```
+
+
+
+
+```{r, echo=FALSE}
+songs_1 <- spotify_songs_final_songs[c(1:5,17,19)]
+
+
+songs_1$duration_mins <- round(songs_1$duration_ms/60000, 2)
+
+songs_1 <- songs_1[-c(6)]
+songs_1 <- songs_1[c(1,2,3,4,5,7,6)]
+
+
+
+datatable(songs_1, filter = 'top', options = list(pageLength = 10))
+```
+
+**Song Suggestion**
+
+1) I Don't Care by Justin Beiber
+
+Sample Case 1: Imagine you are listening to "I Don't Care" by Justin Beiber and Ed Sheeran. Pretty popular and a great song for casual listening. Let's see what are the song suggestions we receive for this particular song.
+
+
+```{r, echo=FALSE}
+datatable(songs_1 %>% filter(track_artist == "Ed Sheeran", track_name == "I Don't Care (with Justin Bieber)"))
+
+
+```
+
+
+
+We see that there are two tracks of same name, only difference is their popularity. They are indeed clustered together by our K-means algorithm.
+
+
+Based on songs audio features like Acousticness, Daceabiliy, Speechyness, Instrumentalness, etc, our algorithm will suggest songs which are musically closer to "I Don't Care by Ed Sheeran". Let's look at suggested songs -
+
+
+```{r, echo=FALSE}
+datatable(songs_1 %>% filter(cluster_num == 1946, track_artist!= "Ed Sheeran", track_name != "I Don't Care (with Justin Bieber)"))
+```
+Let's look a couple more examples.
+
+
+2) Jingle Bells by Ella Fitzgerald
+```{r, echo=FALSE}
+datatable(songs_1 %>% filter(track_artist == "Ella Fitzgerald", track_name == "Jingle Bells"))
+
+```
+And Corresponding Suggestions :
+```{r, echo=FALSE}
+datatable(songs_1 %>% filter(cluster_num == 1293, track_artist!= "Ella Fitzgerald", track_name != "Jingle Bells"))
+```
+
+
+
+
+3) Señorita by Shawn Mendes :
+```{r, echo=FALSE}
+datatable(songs_1 %>% filter(track_artist == "Shawn Mendes", track_name == "Señorita"))
+
+
+```
+And Corresponding Suggestions :
+```{r, echo=FALSE}
+datatable(songs_1 %>% filter(cluster_num == 3158, track_artist != "Shawn Mendes", track_name != "Señorita"))
+```
+
+
+
+4) South of the Border by Ed Sheeran :
+```{r, echo=FALSE}
+datatable(songs_1 %>% filter(track_artist == "Ed Sheeran", track_name == "South of the Border (feat. Camila Cabello & Cardi B)"), options = list(pageLength = 10))
+
+```
+And Corresponding Suggestions :
+```{r, echo=FALSE}
+datatable(songs_1 %>% filter(cluster_num == 5214, track_artist != "Ed Sheeran", track_name != "South of the Border (feat. Camila Cabello & Cardi B)"), options = list(pageLength = 10))
+```
+
+
+**Summary**
+
+**Good clusters has high similarity characteristics i.e. low Within Cluster SS, and maximum dissimilarity in characteristics between clusters i.e. high Between SS. In summary, we can measure the Between SS / Total SS ratio, if that is close to 1 (100%) means the clustering fits the data well. This has been proved true for our case as the ratio is at 91%, which indicates that the clustering is pretty accurate.**
+
+**Limitations**
+
+- The K-Means clustering used has a general limitation of being prone to outliers.
+- If we are adding more data points, as in more songs, then it impacts the cluster definition entirely.
+- If there are more features, the Clustering would become more complex and difficult.
+
+
+
+
