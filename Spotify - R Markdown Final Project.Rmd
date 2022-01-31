@@ -13,8 +13,7 @@ pre, pre:not([class]) { background-color: White; }
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-<div>
-<p style="font-family: times, serif; font-size:11pt; font-style:italic"><b>Presented by - <b>Daya Nayak, Shubham Jha, Maulik Patel</b></p>
+
 ## Analysis of Songs on Spotify {.tabset}
 
 
@@ -611,7 +610,7 @@ spotify_reduced <- as.data.frame(scale(spotify_reduced))
 
 Taking 5670 as optimal value and creating cluster
 ```{r, message=FALSE, warning=FALSE}
-
+set.seed(123)
 clust <- kmeans(spotify_reduced, 5670)
 
 # final data -
@@ -634,7 +633,7 @@ print(paste0(round(clust$betweenss/clust$totss, 4)*100, "%"))
 
 
 
-Filtering out the songs which couldnt be clustered or have less neighbors
+Filtering out the songs which could'nt be clustered or have less neighbors
 
 ```{r, message=FALSE, warning=FALSE}
 
@@ -672,8 +671,11 @@ Sample Case 1: Imagine you are listening to "I Don't Care" by Justin Beiber and 
 
 
 ```{r, echo=FALSE}
-datatable(songs_1 %>% filter(track_artist == "Ed Sheeran", track_name == "I Don't Care (with Justin Bieber)"))
 
+songs_2 <- songs_1 %>% filter(track_artist == "Ed Sheeran", track_name == "I Don't Care (with Justin Bieber)")
+song_clust_num <- songs_2$cluster_num[[1]]
+
+datatable(songs_2)
 
 ```
 
@@ -682,23 +684,24 @@ datatable(songs_1 %>% filter(track_artist == "Ed Sheeran", track_name == "I Don'
 We see that there are two tracks of same name, only difference is their popularity. They are indeed clustered together by our K-means algorithm.
 
 
-Based on songs audio features like Acousticness, Daceabiliy, Speechyness, Instrumentalness, etc, our algorithm will suggest songs which are musically closer to "I Don't Care by Ed Sheeran". Let's look at suggested songs -
+Based on songs audio features like Acousticness, Danceabiliy, Speechyness, Instrumentalness, etc, our algorithm will suggest songs which are musically closer to "I Don't Care by Ed Sheeran". Let's look at suggested songs -
 
 
 ```{r, echo=FALSE}
-datatable(songs_1 %>% filter(cluster_num == 1946, track_artist!= "Ed Sheeran", track_name != "I Don't Care (with Justin Bieber)"))
+datatable(songs_1 %>% filter(cluster_num == song_clust_num, track_artist!= "Ed Sheeran", track_name != "I Don't Care (with Justin Bieber)"))
 ```
 Let's look a couple more examples.
 
 
-2) Jingle Bells by Ella Fitzgerald
+2) Beautiful People by Ed Sheeran
 ```{r, echo=FALSE}
-datatable(songs_1 %>% filter(track_artist == "Ella Fitzgerald", track_name == "Jingle Bells"))
-
+songs_2 <- songs_1 %>% filter(track_artist == "Ed Sheeran", track_name == "Beautiful People (feat. Khalid)")
+song_clust_num <- songs_2$cluster_num[[1]]
+datatable(songs_2)
 ```
 And Corresponding Suggestions :
 ```{r, echo=FALSE}
-datatable(songs_1 %>% filter(cluster_num == 1293, track_artist!= "Ella Fitzgerald", track_name != "Jingle Bells"))
+datatable(songs_1 %>% filter(cluster_num == song_clust_num, track_artist!= "Ed Sheeran", track_name != "Beautiful People (feat. Khalid)"))
 ```
 
 
@@ -706,25 +709,30 @@ datatable(songs_1 %>% filter(cluster_num == 1293, track_artist!= "Ella Fitzgeral
 
 3) Señorita by Shawn Mendes :
 ```{r, echo=FALSE}
-datatable(songs_1 %>% filter(track_artist == "Shawn Mendes", track_name == "Señorita"))
+songs_2 <- songs_1 %>% filter(track_artist == "Shawn Mendes", track_name == "Señorita")
+song_clust_num <- songs_2$cluster_num[[1]]
+datatable(songs_2)
 
 
 ```
 And Corresponding Suggestions :
 ```{r, echo=FALSE}
-datatable(songs_1 %>% filter(cluster_num == 3158, track_artist != "Shawn Mendes", track_name != "Señorita"))
+datatable(songs_1 %>% filter(cluster_num == song_clust_num, track_artist != "Shawn Mendes", track_name != "Señorita"))
 ```
 
 
 
 4) South of the Border by Ed Sheeran :
 ```{r, echo=FALSE}
-datatable(songs_1 %>% filter(track_artist == "Ed Sheeran", track_name == "South of the Border (feat. Camila Cabello & Cardi B)"), options = list(pageLength = 10))
+songs_2 <- songs_1 %>% filter(track_artist == "Ed Sheeran", track_name == "South of the Border (feat. Camila Cabello & Cardi B)")
+song_clust_num <- songs_2$cluster_num[[1]]
+datatable(songs_2)
+
 
 ```
 And Corresponding Suggestions :
 ```{r, echo=FALSE}
-datatable(songs_1 %>% filter(cluster_num == 5214, track_artist != "Ed Sheeran", track_name != "South of the Border (feat. Camila Cabello & Cardi B)"), options = list(pageLength = 10))
+datatable(songs_1 %>% filter(cluster_num == song_clust_num, track_artist != "Ed Sheeran", track_name != "South of the Border (feat. Camila Cabello & Cardi B)"), options = list(pageLength = 10))
 ```
 
 
